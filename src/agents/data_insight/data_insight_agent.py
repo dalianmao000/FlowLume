@@ -10,7 +10,11 @@ This module provides:
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import time
+import re
 import sqlite3
+
+import sqlglot
+from sqlglot import parse
 
 from src.llm.claude_client import ClaudeClient
 from src.prompts.data_insight import (
@@ -197,10 +201,20 @@ class DataInsightAgent:
             ValidationError: If the SQL is not a SELECT query
             sqlite3.Error: If query execution fails
         """
-        # Validate that this is a SELECT query (security check)
-        sql_upper = sql.sql.strip().upper()
-        if not sql_upper.startswith("SELECT"):
-            raise ValidationError("Only SELECT queries are allowed for execution")
+        # Validate that this is a SELECT query using SQLGlot (security check)
+        try:
+            parsed = parse(sql.sql, dialect="sqlite")
+            if not parsed:
+                raise ValidationError("Failed to parse SQL - empty result")
+
+            # Check that the parsed statement is a SELECT (not INSERT, DROP, etc.)
+            for stmt in parsed:
+                if not isinstance(stmt, sqlglot.exp.Select):
+                    raise ValidationError("Only SELECT queries are allowed for execution")
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(f"Invalid SQL: {e}")
 
         # Execute the query
         start_time = time.time()
@@ -253,7 +267,7 @@ class DataInsightAgent:
                     summary = f"Data has {result.row_count} rows with values ranging from {min_val} to {max_val}, averaging {avg_val:.2f}."
                 else:
                     summary = f"Data has {result.row_count} rows."
-            except:
+            except Exception:
                 summary = f"Data has {result.row_count} rows."
 
         prompt = f"""Please interpret the following query results:
@@ -421,8 +435,6 @@ Provide a concise natural language interpretation focusing on key findings and a
         Returns:
             Confidence score between 0 and 1
         """
-        import re
-
         # Look for confidence patterns like "Confidence: 0.75" or "confidence: 75%"
         patterns = [
             r"confidence[:\s]+0?\.\d+",
