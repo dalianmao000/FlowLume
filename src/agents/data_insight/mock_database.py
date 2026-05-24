@@ -5,6 +5,7 @@ This module provides a test database with sample manufacturing data for:
 - Anomaly detection testing
 """
 
+import random
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -103,7 +104,6 @@ def init_mock_db() -> None:
         equipment_id = equipment_ids[minute_offset % len(equipment_ids)]
 
         # Weighted random status selection
-        import random
         rand_val = random.random()
         cumulative = 0
         selected_status = statuses[0]
@@ -185,11 +185,15 @@ def verify_data() -> dict[str, int]:
     Returns:
         Dictionary with table names as keys and row counts as values.
     """
+    VALID_TABLES = {"production_daily", "equipment_status", "quality_inspection"}
+
     conn = get_connection()
     cursor = conn.cursor()
 
     counts = {}
     for table_name in ["production_daily", "equipment_status", "quality_inspection"]:
+        if table_name not in VALID_TABLES:
+            raise ValueError(f"Invalid table name: {table_name}")
         cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
         counts[table_name] = cursor.fetchone()[0]
 
