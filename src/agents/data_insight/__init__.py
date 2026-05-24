@@ -10,6 +10,10 @@ from .text_to_sql import (
     ValidationError,
     SQLGenerationError,
 )
+from .anomaly_detector import (
+    AnomalyPoint,
+    AnomalyDetector,
+)
 
 __all__ = [
     "init_mock_db",
@@ -22,4 +26,6 @@ __all__ = [
     "TextToSQLConverter",
     "ValidationError",
     "SQLGenerationError",
+    "AnomalyPoint",
+    "AnomalyDetector",
 ]
