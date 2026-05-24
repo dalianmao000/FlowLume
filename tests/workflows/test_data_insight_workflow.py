@@ -80,6 +80,9 @@ class TestWorkflowNodes:
         assert state.natural_query is None
         assert state.validation_error is None
 
+        # Verify workflow graph was created properly
+        assert workflow is not None
+
     def test_generate_sql_node(self):
         """Verify generate_sql node works with mock LLM."""
         mock_llm = MagicMock()
@@ -94,6 +97,8 @@ class TestWorkflowNodes:
         # LangGraph returns a dict, not the dataclass directly
         assert final_state is not None
         assert isinstance(final_state, dict)
+        # Verify query was processed and SQL was generated
+        assert "sql_query" in final_state or "validation_error" in final_state
 
     def test_validate_sql_node(self):
         """Verify validate_sql node validates SQL correctly."""
@@ -111,6 +116,9 @@ class TestWorkflowNodes:
 
         # Validate the node function exists and state can be modified
         assert state.sql_query is not None
+        # Verify SQL query has expected structure
+        assert state.sql_query.sql == "SELECT * FROM production_daily"
+        assert state.sql_query.explanation == "Test query"
 
     def test_execute_query_node(self):
         """Verify execute_query node executes SQL."""

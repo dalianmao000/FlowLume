@@ -193,13 +193,14 @@ class TestTextToSQLConverter:
         """Test SQL validation passes for valid SELECT."""
         converter = TextToSQLConverter(schema=mock_schema, llm_client=mock_llm_client)
         # Should not raise for valid SQL
-        converter._validate_sql("SELECT date, oee FROM production_daily WHERE oee < 0.8")
+        result = converter.validate_sql("SELECT date, oee FROM production_daily WHERE oee < 0.8")
+        assert result is True
 
     def test_validate_sql_invalid_syntax(self, mock_schema, mock_llm_client):
         """Test SQL validation fails for invalid SQL."""
         converter = TextToSQLConverter(schema=mock_schema, llm_client=mock_llm_client)
         with pytest.raises(ValidationError):
-            converter._validate_sql("SELEC * FROM production_daily")
+            converter.validate_sql("SELEC * FROM production_daily")
 
     def test_validate_sql_dangerous_operations(self, mock_schema, mock_llm_client):
         """Test SQL validation rejects dangerous operations."""
@@ -217,27 +218,28 @@ class TestTextToSQLConverter:
 
         for sql in dangerous_operations:
             with pytest.raises(ValidationError, match="Forbidden SQL operation"):
-                converter._validate_sql(sql)
+                converter.validate_sql(sql)
 
     def test_validate_sql_rejects_unknown_tables(self, mock_schema, mock_llm_client):
         """Test SQL validation rejects queries on unknown tables."""
         converter = TextToSQLConverter(schema=mock_schema, llm_client=mock_llm_client)
         with pytest.raises(ValidationError, match="Unknown table"):
-            converter._validate_sql("SELECT * FROM unknown_table")
+            converter.validate_sql("SELECT * FROM unknown_table")
 
     def test_validate_sql_rejects_unknown_columns(self, mock_schema, mock_llm_client):
         """Test SQL validation rejects queries with unknown columns."""
         converter = TextToSQLConverter(schema=mock_schema, llm_client=mock_llm_client)
         with pytest.raises(ValidationError, match="Unknown column"):
-            converter._validate_sql("SELECT unknown_col FROM production_daily")
+            converter.validate_sql("SELECT unknown_col FROM production_daily")
 
     def test_validate_sql_allows_valid_aggregations(self, mock_schema, mock_llm_client):
         """Test SQL validation allows GROUP BY and ORDER BY."""
         converter = TextToSQLConverter(schema=mock_schema, llm_client=mock_llm_client)
         # Should not raise for valid aggregation queries
-        converter._validate_sql(
+        result = converter.validate_sql(
             "SELECT line, AVG(oee) as avg_oee FROM production_daily GROUP BY line ORDER BY avg_oee"
         )
+        assert result is True
 
     def test_validate_sql_allows_joins(self, mock_schema, mock_llm_client):
         """Test SQL validation allows JOINs between known tables."""
@@ -263,9 +265,10 @@ class TestTextToSQLConverter:
         schema = DatabaseSchema(tables=tables)
         converter = TextToSQLConverter(schema=schema, llm_client=mock_llm_client)
         # Should not raise for valid join
-        converter._validate_sql(
+        result = converter.validate_sql(
             "SELECT p.line, e.status FROM production_daily p JOIN equipment_status e ON p.line = e.equipment_id"
         )
+        assert result is True
 
 
 class TestSQLGenerationError:

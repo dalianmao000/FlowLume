@@ -325,6 +325,18 @@ EXPLANATION: This query retrieves the OEE values for each production line from y
 
         return sql, explanation
 
+    def validate_sql(self, sql: str) -> bool:
+        """Validate SQL for syntax correctness and security.
+
+        Args:
+            sql: SQL string to validate
+
+        Returns:
+            True if SQL is valid, raises ValidationError if invalid
+        """
+        self._validate_sql(sql)
+        return True
+
     def _validate_sql(self, sql: str) -> None:
         """Validate SQL for syntax correctness and security.
 

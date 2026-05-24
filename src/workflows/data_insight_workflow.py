@@ -66,103 +66,142 @@ def create_data_insight_workflow(
 
     agent = agent or DataInsightAgent()
 
-    def parse_query_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def parse_query_node(state: DataInsightWorkflowState) -> dict:
         """解析自然语言查询（初始化节点）"""
-        if state.natural_query is None:
-            state.natural_query = "Show OEE trends for the last 7 days"
+        natural_query = state.natural_query
+        if natural_query is None:
+            natural_query = "Show OEE trends for the last 7 days"
         # Reset validation error on new query
-        state.validation_error = None
-        return state
+        return {
+            "natural_query": natural_query,
+            "validation_error": None,
+        }
 
-    def generate_sql_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def generate_sql_node(state: DataInsightWorkflowState) -> dict:
         """从自然语言生成 SQL"""
         if state.natural_query is None:
             raise ValueError("natural_query is required")
 
-        try:
-            state.sql_query = agent.text_to_sql(state.natural_query)
-            state.validation_error = None
-        except Exception as e:
-            state.validation_error = str(e)
-        return state
+        # Increment retry count when generating SQL (happens on retry)
+        retry_count = state.retry_count
+        if state.sql_query is not None:
+            # This is a retry, increment the counter
+            retry_count += 1
 
-    def validate_sql_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+        sql_query = None
+        validation_error = None
+        try:
+            sql_query = agent.text_to_sql(state.natural_query)
+        except Exception as e:
+            validation_error = str(e)
+        return {
+            "sql_query": sql_query,
+            "validation_error": validation_error,
+            "retry_count": retry_count,
+        }
+
+    def validate_sql_node(state: DataInsightWorkflowState) -> dict:
         """验证 SQL 语法和安全性"""
+        validation_error = None
         if state.sql_query is None:
-            state.validation_error = "No SQL query to validate"
-            return state
+            validation_error = "No SQL query to validate"
+            return {"validation_error": validation_error}
 
         try:
-            # Use the text_to_sql converter's validation
-            agent.text_to_sql_converter._validate_sql(state.sql_query.sql)
-            state.validation_error = None
+            # Use the text_to_sql converter's public validation method
+            agent.text_to_sql_converter.validate_sql(state.sql_query.sql)
         except ValidationError as e:
-            state.validation_error = str(e)
+            validation_error = str(e)
         except Exception as e:
-            state.validation_error = f"Validation error: {e}"
+            validation_error = f"Validation error: {e}"
 
-        return state
+        return {"validation_error": validation_error}
 
-    def execute_query_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def execute_query_node(state: DataInsightWorkflowState) -> dict:
         """执行 SQL 查询并获取结果"""
         if state.sql_query is None:
             raise ValueError("sql_query is required")
 
+        query_result = None
+        validation_error = None
         try:
-            state.query_result = agent.execute_query(state.sql_query)
+            query_result = agent.execute_query(state.sql_query)
         except Exception as e:
-            state.validation_error = f"Query execution error: {e}"
-        return state
+            validation_error = f"Query execution error: {e}"
+        return {
+            "query_result": query_result,
+            "validation_error": validation_error,
+        }
 
-    def interpret_result_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def interpret_result_node(state: DataInsightWorkflowState) -> dict:
         """解释查询结果"""
         if state.query_result is None:
             raise ValueError("query_result is required")
 
-        state.interpretation = agent.interpret_result(state.query_result)
-        return state
+        interpretation = agent.interpret_result(state.query_result)
+        return {"interpretation": interpretation}
 
-    def detect_anomaly_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def detect_anomaly_node(state: DataInsightWorkflowState) -> dict:
         """检测数据中的异常"""
         if state.query_result is None:
             raise ValueError("query_result is required")
 
+        anomalies = []
         # Extract numeric data from results for anomaly detection
-        if state.query_result.results:
-            # Try to detect anomalies in the first numeric column
-            numeric_data = []
-            for row in state.query_result.results:
-                if row[0] is not None and isinstance(row[0], (int, float)):
-                    numeric_data.append(float(row[0]))
+        if state.query_result.results and len(state.query_result.results) > 0:
+            # Get column types from query_result if available
+            column_types = getattr(state.query_result, 'column_types', None)
 
-            if len(numeric_data) >= 3:
-                state.anomalies = agent.detect_anomaly(
-                    metric="query_result",
-                    data=numeric_data,
-                    threshold=2.0,
-                    method="statistical"
-                )
+            # Find all numeric column indices
+            numeric_column_indices = []
+            if column_types:
+                for idx, col_type in enumerate(column_types):
+                    if col_type and col_type.upper() in ('INTEGER', 'REAL', 'FLOAT', 'NUMERIC'):
+                        numeric_column_indices.append(idx)
+            else:
+                # Fallback: detect numeric columns by checking data
+                if len(state.query_result.results) > 0:
+                    first_row = state.query_result.results[0]
+                    for idx, val in enumerate(first_row):
+                        if val is not None and isinstance(val, (int, float)):
+                            numeric_column_indices.append(idx)
 
-        return state
+            # Check each numeric column for anomalies
+            for col_idx in numeric_column_indices:
+                numeric_data = []
+                for row in state.query_result.results:
+                    if col_idx < len(row) and row[col_idx] is not None and isinstance(row[col_idx], (int, float)):
+                        numeric_data.append(float(row[col_idx]))
 
-    def analyze_root_cause_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+                if len(numeric_data) >= 3:
+                    col_anomalies = agent.detect_anomaly(
+                        metric=f"column_{col_idx}",
+                        data=numeric_data,
+                        threshold=2.0,
+                        method="statistical"
+                    )
+                    anomalies.extend(col_anomalies)
+
+        return {"anomalies": anomalies}
+
+    def analyze_root_cause_node(state: DataInsightWorkflowState) -> dict:
         """分析异常的根本原因"""
         if not state.anomalies:
-            return state
+            return {"root_causes": []}
 
-        state.root_causes = []
+        root_causes = []
         for anomaly in state.anomalies:
             root_cause = agent.root_cause_analysis(anomaly)
-            state.root_causes.append(root_cause)
+            root_causes.append(root_cause)
 
-        return state
+        return {"root_causes": root_causes}
 
-    def generate_report_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def generate_report_node(state: DataInsightWorkflowState) -> dict:
         """生成完整的洞察报告"""
         if state.query_result is None:
             raise ValueError("query_result is required")
 
-        state.insight_report = agent.generate_insight_report(
+        insight_report = agent.generate_insight_report(
             state.query_result,
             state.anomalies
         )
@@ -172,15 +211,15 @@ def create_data_insight_workflow(
             a for a in state.anomalies
             if a.severity in (SeverityLevel.HIGH, SeverityLevel.CRITICAL)
         ]
-        state.is_high_risk = len(high_severity_anomalies) > 0
+        is_high_risk = len(high_severity_anomalies) > 0
 
         # Generate final report text
         report_parts = []
 
-        if state.insight_report:
+        if insight_report:
             report_parts.append(f"# 数据洞察报告\n")
             report_parts.append(f"## 查询\n{state.natural_query}\n")
-            report_parts.append(f"## SQL\n```sql\n{state.insight_report.query}\n```\n")
+            report_parts.append(f"## SQL\n```sql\n{insight_report.query}\n```\n")
 
             if state.interpretation:
                 report_parts.append(f"## 解释\n{state.interpretation}\n")
@@ -202,34 +241,39 @@ def create_data_insight_workflow(
                         report_parts.append(f"- {action}\n")
                     report_parts.append(f"置信度: {rc.confidence:.0%}\n")
 
-            if state.insight_report.recommendations:
+            if insight_report.recommendations:
                 report_parts.append(f"## 建议\n")
-                for rec in state.insight_report.recommendations:
+                for rec in insight_report.recommendations:
                     report_parts.append(f"- {rec}\n")
 
-        state.final_report = "".join(report_parts)
-        return state
+        final_report = "".join(report_parts)
+        return {
+            "insight_report": insight_report,
+            "is_high_risk": is_high_risk,
+            "final_report": final_report,
+        }
 
-    def human_review_node(state: DataInsightWorkflowState) -> DataInsightWorkflowState:
+    def human_review_node(state: DataInsightWorkflowState) -> dict:
         """人工审核节点（HITL）- 用于高价值/高风险决策"""
         # Simplified implementation: auto-approve unless high risk with no recommendations
         # In production, this would integrate with a real approval workflow
 
+        human_approved = False
         if state.is_high_risk:
             # High risk cases require explicit approval
             # For PoC, we auto-approve but set human_approved based on feedback
             if state.human_feedback is None:
                 # No feedback yet - default to approved in PoC
-                state.human_approved = True
+                human_approved = True
             elif "reject" in state.human_feedback.lower():
-                state.human_approved = False
+                human_approved = False
             else:
-                state.human_approved = True
+                human_approved = True
         else:
             # Non-high-risk cases are auto-approved
-            state.human_approved = True
+            human_approved = True
 
-        return state
+        return {"human_approved": human_approved}
 
     # 构建状态图
     workflow = StateGraph(DataInsightWorkflowState)
@@ -255,8 +299,8 @@ def create_data_insight_workflow(
     # 条件边: validate_sql -> execute_query (valid) 或 generate_sql (invalid, retry)
     def validation_route(state: DataInsightWorkflowState) -> str:
         if state.validation_error:
+            # Note: retry_count increment happens in generate_sql_node
             if state.retry_count < state.max_retries:
-                state.retry_count += 1
                 return "invalid_retry"
             else:
                 # Max retries exceeded, fail
@@ -278,7 +322,7 @@ def create_data_insight_workflow(
 
     # 条件边: detect_anomaly -> analyze_root_cause (anomalies found) 或 generate_report (no anomalies)
     def anomaly_route(state: DataInsightWorkflowState) -> str:
-        if state.anomalies and len(state.anomalies) > 0:
+        if state.anomalies:
             return "anomalies_found"
         return "no_anomalies"
 
