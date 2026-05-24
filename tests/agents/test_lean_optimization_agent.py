@@ -295,7 +295,6 @@ class TestAnalyzeProductionData:
         with patch.object(agent.llm, 'generate', return_value="Mock analysis"):
             report = agent.analyze_production_data(
                 production_events,
-                [],  # equipment_events - not used currently
                 workforce_events,
             )
 
@@ -311,7 +310,7 @@ class TestAnalyzeProductionData:
 
         # Mock LLM to avoid actual API calls
         with patch.object(agent.llm, 'generate', return_value="Mock analysis"):
-            report = agent.analyze_production_data([], [], [])
+            report = agent.analyze_production_data([], [])
 
         assert isinstance(report, AnalysisReport)
         assert report.vsm_data.total_lead_time == 0
@@ -435,7 +434,6 @@ class TestEndToEndWithMockData:
         with patch.object(agent.llm, 'generate', return_value="Mock bottleneck analysis"):
             report = agent.analyze_production_data(
                 production_events,
-                [],  # equipment_events
                 workforce_events,
             )
 
