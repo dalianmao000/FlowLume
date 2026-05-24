@@ -562,8 +562,11 @@ class TestWasteIdentifierMotion:
             ),
         ]
         waste = identifier.identify_motion(events)
-        # Should detect motion waste when one operation takes much longer than average
-        assert len(waste) >= 0  # May or may not trigger depending on threshold
+        # Motion waste is identified when max duration > 1.5x average AND > 3600s
+        # In this test: avg = (3600 + 1800 + 14400) / 3 = 6600, max = 14400, which is > 1.5*6600 = 9900
+        # So this SHOULD detect motion waste
+        assert len(waste) == 1
+        assert waste[0].waste_type == WasteType.MOTION
 
 
 class TestWasteIdentifierProcessing:
@@ -602,13 +605,17 @@ class TestWasteIdentifierProcessing:
                 operation="WELDING",
                 equipment_id="EQ-001",
                 start_time=datetime(2026, 5, 17, 10, 0, 0),
-                end_time=datetime(2026, 5, 17, 12, 0, 0),  # 2 hours - excessive
+                end_time=datetime(2026, 5, 17, 12, 0, 1),  # 2 hours + 1 sec - exceeds 2x threshold
                 quantity=100,
                 location="STATION-1",
             ),
         ]
         waste = identifier.identify_processing(events)
-        assert len(waste) >= 0
+        # Processing waste should detect operations exceeding 2x average threshold
+        # Avg time = (1800 + 1800 + 7200) / 3 = 3600, threshold = 7200
+        # Only the 2-hour (7200s) operation exceeds threshold, so 1 waste item expected
+        assert len(waste) == 1
+        assert waste[0].waste_type == WasteType.PROCESSING
 
 
 class TestWasteIdentifierIntegration:

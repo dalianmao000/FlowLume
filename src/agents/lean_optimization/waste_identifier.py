@@ -74,9 +74,11 @@ class WasteIdentifier:
     HIGH_SEVERITY_THRESHOLD = 1800.0  # 30 minutes
     MEDIUM_SEVERITY_THRESHOLD = 600.0  # 10 minutes
 
-    def __init__(self):
-        """Initialize the WasteIdentifier."""
-        pass
+    # Scaling factors for severity calculation when using unit-based quantities
+    # These multipliers convert unit counts to time-equivalent severity scores
+    INVENTORY_SEVERITY_SCALE = 10  # 10 seconds per unit - WIP ties up capital/space
+    TRANSPORT_SEVERITY_SCALE = 300  # 5 minutes (300s) per location change - transport is non-value-adding
+    OVERPRODUCTION_SEVERITY_SCALE = 60  # 1 minute (60s) per overproduced unit - excess inventory impact
 
     def _determine_severity(self, quantity: float) -> str:
         """Determine severity based on quantity (time lost or units affected).
@@ -142,7 +144,7 @@ class WasteIdentifier:
                         location=step.name,
                         quantity=float(step.inventory),
                         impact=f"Excess WIP inventory: {step.inventory} units",
-                        severity=self._determine_severity(float(step.inventory) * 10),  # Scale for units
+                        severity=self._determine_severity(float(step.inventory) * self.INVENTORY_SEVERITY_SCALE),  # Scale for units
                     )
                 )
 
@@ -245,7 +247,7 @@ class WasteIdentifier:
                         location=f"Order {order_id}",
                         quantity=float(len(location_changes)),
                         impact=f"Excessive transport: {len(location_changes)} location changes within order",
-                        severity=self._determine_severity(float(len(location_changes)) * 300),  # Scale: 5 min per change
+                        severity=self._determine_severity(float(len(location_changes)) * self.TRANSPORT_SEVERITY_SCALE),
                     )
                 )
 
@@ -287,7 +289,7 @@ class WasteIdentifier:
             time_impact = 0.0
             for event in loc_defects:
                 duration = event.duration_seconds()
-                if duration:
+                if duration is not None:
                     time_impact += duration
 
             waste_items.append(
@@ -341,7 +343,7 @@ class WasteIdentifier:
                         location=f"Order {order_id}",
                         quantity=float(excess_qty),
                         impact=f"Produced {info['shipped_qty']} units but only {info['order_qty']} units ordered ({excess_qty} excess)",
-                        severity=self._determine_severity(float(excess_qty) * 60),  # Scale: 1 min per unit
+                        severity=self._determine_severity(float(excess_qty) * self.OVERPRODUCTION_SEVERITY_SCALE),  # Scale: 1 min per unit
                     )
                 )
 
@@ -380,7 +382,7 @@ class WasteIdentifier:
                         location=location,
                         quantity=float(inv_qty),
                         impact=f"Excess WIP at {location}: {inv_qty} units accumulated",
-                        severity=self._determine_severity(float(inv_qty) * 10),
+                        severity=self._determine_severity(float(inv_qty) * self.INVENTORY_SEVERITY_SCALE),
                     )
                 )
 
@@ -407,7 +409,7 @@ class WasteIdentifier:
         for event in events:
             if event.event_type == "OP_COMPLETE":
                 duration = event.duration_seconds()
-                if duration:
+                if duration is not None:
                     key = f"{event.operation} at {event.location}"
                     if key not in operation_stats:
                         operation_stats[key] = {"durations": [], "count": 0}
@@ -457,7 +459,7 @@ class WasteIdentifier:
         for event in events:
             if event.event_type == "OP_COMPLETE":
                 duration = event.duration_seconds()
-                if duration:
+                if duration is not None:
                     if event.operation not in operation_times:
                         operation_times[event.operation] = []
                     operation_times[event.operation].append(duration)
