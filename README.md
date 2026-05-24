@@ -4,13 +4,13 @@
 
 ## 核心功能
 
-| Agent | 名称 | 核心职责 |
-|:---|:---|:---|
-| Agent-01 | 战略规划 | 成熟度评估、机会识别、Roadmap 生成 |
-| Agent-02 | 变革赋能 | 个性化培训、adoption 追踪 |
-| Agent-03 | 数据洞察 | Text-to-SQL、异常检测、根因分析 |
-| Agent-04 | 精益优化 | 流程挖掘、VSM 生成、改善提案 |
-| Agent-05 | 系统集成 | 需求转译、UAT 生成、数据映射 |
+| Agent | 名称 | 状态 | 核心职责 |
+|:---|:---|:---|:---|
+| Agent-01 | 战略规划 | ✅ 已完成 | 成熟度评估、机会识别、Roadmap 生成 |
+| Agent-02 | 变革赋能 | ✅ 已完成 | 个性化培训、adoption 追踪 |
+| Agent-03 | 数据洞察 | ✅ 已完成 | Text-to-SQL、异常检测、根因分析 |
+| Agent-04 | 精益优化 | ✅ 已完成 | 流程挖掘、VSM 生成、改善提案 |
+| Agent-05 | 系统集成 | 🔄 待开发 | 需求转译、UAT 生成、数据映射 |
 
 ## 技术架构
 
@@ -26,7 +26,7 @@ Claude Code CLI (Orchestrator)
 │   ├── Event Log Processing
 │   ├── VSM Calculator
 │   └── Waste Identifier
-└── Agent-05: System Integration (LangGraph)
+└── Agent-05: System Integration (LangGraph) 🔄
     ├── BRD Parser
     ├── SAP/MES Config Generator
     └── Data Mapper
@@ -67,29 +67,50 @@ print(result)
 src/
 ├── agents/
 │   ├── strategic_planning/    # Agent-01
-│   ├── change_enablement/      # Agent-02
-│   ├── data_insight/           # Agent-03
-│   ├── lean_optimization/      # Agent-04
-│   └── system_integration/     # Agent-05
-├── prompts/                    # Agent 系统提示词
-├── workflows/                  # LangGraph 工作流定义
-└── llm/                        # LLM 客户端封装
+│   ├── change_enablement/     # Agent-02
+│   ├── data_insight/          # Agent-03
+│   ├── lean_optimization/     # Agent-04
+│   └── system_integration/   # Agent-05 🔄
+├── prompts/                   # Agent 系统提示词
+├── workflows/                 # LangGraph 工作流定义
+└── llm/                       # LLM 客户端封装
 tests/
-├── agents/                     # Agent 单元测试
-└── workflows/                  # Workflow 集成测试
+├── agents/                    # Agent 单元测试
+└── workflows/                # Workflow 集成测试
 docs/
-├── specs/                      # 技术设计文档
-└── superpower/plans/           # 实施计划
+├── specs/                     # Agent 技术设计文档
+└── plans/                     # 实施计划
 ```
+
+## 开发进度
+
+### Agent 实现状态
+
+| Agent | 功能模块 | 状态 | 测试用例 |
+|:---|:---|:---|:---|
+| Agent-01 战略规划 | 成熟度评估、机会识别、ROI 测算、Roadmap 生成 | ✅ 已完成 | — |
+| Agent-02 变革赋能 | 培训生成、adoption 追踪、SOP 生成 | ✅ 已完成 | — |
+| Agent-03 数据洞察 | Text-to-SQL、异常检测、根因分析、洞察报告 | ✅ 已完成 | 161 |
+| Agent-04 精益优化 | 流程挖掘、VSM 计算、浪费识别、改善提案 | ✅ 已完成 | 141 |
+| Agent-05 系统集成 | BRD 解析、SAP/MES 配置、UAT 生成、数据映射 | 🔄 待开发 | — |
+
+### 未来开发计划
+
+| 优先级 | 功能 | 描述 | 依赖 |
+|:---|:---|:---|:---|
+| P1 | Agent-05 系统集成 | 完成 SAP/MES 需求转译、UAT 用例生成、数据映射表生成 | Agent-03/04 |
+| P2 | 跨 Agent 编排 | 实现 Agent 间状态共享与协作流程 | Agent-05 |
+| P2 | 真实数据库集成 | MySQL/PostgreSQL 连接器替代 SQLite | — |
+| P3 | Web UI | 基于 Gradio/Streamlit 的交互界面 | P1 完成 |
+| P3 | 预测模型 | 基于历史数据的趋势预测模块 | Agent-03 |
 
 ## 测试覆盖
 
-| Agent | 测试用例 |
+| Agent | 测试用例数 |
 |:---|:---|
 | Agent-03 Data Insight | 161 tests |
 | Agent-04 Lean Optimization | 141 tests |
-| Agent-05 System Integration | ~200 tests |
-| **总计** | **500+ tests** |
+| **总计** | **302+ tests** |
 
 ## 文档
 
