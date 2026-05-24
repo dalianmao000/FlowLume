@@ -13,6 +13,7 @@ Security features:
 
 from dataclasses import dataclass
 from typing import Optional
+import re
 import sqlglot
 from sqlglot import parse, exp
 
@@ -160,6 +161,11 @@ class TextToSQLConverter:
         "GRANT",
         "REVOKE",
     }
+
+    # Pre-compiled regex patterns for forbidden operations with word boundaries
+    FORBIDDEN_PATTERNS = [
+        re.compile(r'\b' + op + r'\b', re.IGNORECASE) for op in FORBIDDEN_OPERATIONS
+    ]
 
     def __init__(self, schema: DatabaseSchema, llm_client, max_retries: int = 2):
         """Initialize TextToSQLConverter.
@@ -328,11 +334,10 @@ EXPLANATION: This query retrieves the OEE values for each production line from y
         Raises:
             ValidationError: If SQL is invalid or insecure
         """
-        # Check for forbidden operations
-        sql_upper = sql.upper()
-        for forbidden in self.FORBIDDEN_OPERATIONS:
-            if f" {forbidden} " in sql_upper or sql_upper.startswith(forbidden):
-                raise ValidationError(f"Forbidden SQL operation: {forbidden}")
+        # Check for forbidden operations using regex with word boundaries
+        for pattern in self.FORBIDDEN_PATTERNS:
+            if pattern.search(sql):
+                raise ValidationError(f"Forbidden SQL operation detected: {pattern.pattern}")
 
         # Parse and validate SQL syntax using SQLGlot
         try:
