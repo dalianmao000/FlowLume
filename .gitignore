@@ -27,5 +27,6 @@ data/
 .DS_Store
 Thumbs.db
 
-# chat-* files are local reference only
+# Local reference files (not pushed)
 chat-*.txt
+业务需求文档.md
