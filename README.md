@@ -1,6 +1,6 @@
-# FlowLume - 精益数字化高级工程师 AI Agent 系统
+# FlowLume - Digital Transformation AI Agent AI Agent 系统
 
-制造业数字化转型 AI Agent 系统，模拟精益数字化高级工程师的思维和工作方式，通过 5 个专业 Agent 实现数字孪生、流程优化和智能决策。
+制造业数字化转型 AI Agent 系统，模拟Digital Transformation AI Agent的思维和工作方式，通过 5 个专业 Agent 实现数字孪生、流程优化和智能决策。
 
 ## 核心功能
 
@@ -9,7 +9,7 @@
 | Agent-01 | 战略规划 | ✅ 已完成 | 成熟度评估、机会识别、Roadmap 生成 |
 | Agent-02 | 变革赋能 | ✅ 已完成 | 个性化培训、adoption 追踪 |
 | Agent-03 | 数据洞察 | ✅ 已完成 | Text-to-SQL、异常检测、根因分析 |
-| Agent-04 | 精益优化 | ✅ 已完成 | 流程挖掘、VSM 生成、改善提案 |
+| Agent-04 | Process Optimization | ✅ 已完成 | 流程挖掘、VSM 生成、改善提案 |
 | Agent-05 | 系统集成 | 🔄 待开发 | 需求转译、UAT 生成、数据映射 |
 
 ## 技术架构
@@ -91,7 +91,7 @@ docs/
 | Agent-01 战略规划 | 成熟度评估、机会识别、ROI 测算、Roadmap 生成 | ✅ 已完成 | — |
 | Agent-02 变革赋能 | 培训生成、adoption 追踪、SOP 生成 | ✅ 已完成 | — |
 | Agent-03 数据洞察 | Text-to-SQL、异常检测、根因分析、洞察报告 | ✅ 已完成 | 161 |
-| Agent-04 精益优化 | 流程挖掘、VSM 计算、浪费识别、改善提案 | ✅ 已完成 | 141 |
+| Agent-04 Process Optimization | 流程挖掘、VSM 计算、浪费识别、改善提案 | ✅ 已完成 | 141 |
 | Agent-05 系统集成 | BRD 解析、SAP/MES 配置、UAT 生成、数据映射 | 🔄 待开发 | — |
 
 ### 未来开发计划
