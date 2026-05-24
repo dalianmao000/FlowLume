@@ -172,7 +172,10 @@ class TestWorkflowExecution:
         assert result is not None
         # Workflow invoke returns dict-like state
         assert isinstance(result, dict) or hasattr(result, 'current_vsm')
-        assert result.get('current_vsm') is not None or result.get('final_report') is not None
+        # Verify VSM was calculated (empty but valid VSM)
+        assert result.get('current_vsm') is not None
+        assert isinstance(result.get('current_vsm'), VSMData)
+        assert result.get('current_vsm').total_va_time == 0.0
 
     def test_run_workflow_with_mock_data(self):
         """Verify workflow runs with mock production events using mocked agent."""
@@ -274,7 +277,7 @@ class TestWorkflowExecution:
                 expected_improvement={"lead_time_reduction": 0.20},
             )
         ]
-        mock_agent._get_highest_priority_proposal.return_value = KaizenProposal(
+        mock_agent.get_highest_priority_proposal.return_value = KaizenProposal(
             title="Reduce Wait Times",
             description="Implement better scheduling",
             impact="20% reduction in wait times",
@@ -289,8 +292,10 @@ class TestWorkflowExecution:
         assert result is not None
         # Workflow invoke returns dict-like state
         assert isinstance(result, dict) or hasattr(result, 'current_vsm')
-        # With mocked agent, we should get VSM data
-        assert result.get('current_vsm') is not None or result.get('final_report') is not None
+        # Verify VSM was actually calculated
+        assert result.get('current_vsm') is not None
+        assert isinstance(result.get('current_vsm'), VSMData)
+        assert result.get('current_vsm').total_va_time == 5400
 
     def test_workflow_with_high_value_proposal(self):
         """Verify workflow handles high-value proposals requiring HITL."""
@@ -372,7 +377,7 @@ class TestWorkflowWithMockAgent:
                 expected_improvement={"lead_time_reduction": 0.20},
             )
         ]
-        mock_agent._get_highest_priority_proposal.return_value = KaizenProposal(
+        mock_agent.get_highest_priority_proposal.return_value = KaizenProposal(
             title="Reduce Wait Times",
             description="Implement better scheduling",
             impact="20% reduction in wait times",

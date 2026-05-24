@@ -156,7 +156,7 @@ class LeanOptimizationAgent:
         target_vsm = None
         if kaizen_proposals:
             # Use the highest priority proposal for simulation
-            priority_proposal = self._get_highest_priority_proposal(kaizen_proposals)
+            priority_proposal = self.get_highest_priority_proposal(kaizen_proposals)
             if priority_proposal:
                 target_vsm = self.simulate_improvement(priority_proposal, vsm_data)
 
@@ -766,7 +766,7 @@ class LeanOptimizationAgent:
         # Rough estimate: assume 3% defect rate if defects found
         return min(15.0, max(1.0, total_defects * 0.1))
 
-    def _get_highest_priority_proposal(
+    def get_highest_priority_proposal(
         self, proposals: List[KaizenProposal]
     ) -> Optional[KaizenProposal]:
         """Get the highest priority proposal."""

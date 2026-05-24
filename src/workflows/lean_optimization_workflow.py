@@ -67,6 +67,9 @@ class LeanOptimizationWorkflowState:
     # Final output
     final_report: Optional[str] = None
 
+    # Validation errors
+    validation_errors: List[str] = field(default_factory=list)
+
     # Retry mechanism
     retry_count: int = 0
     max_retries: int = 3
@@ -89,6 +92,11 @@ def collect_data_node(state: LeanOptimizationWorkflowState, agent: Optional[Lean
             "workforce_events": [],
             "equipment_events": [],
         }
+
+    # Increment retry_count when re-entering after human review rejection
+    # Detection: raw_data already has content from previous iteration
+    if raw_data.get("production_events") or raw_data.get("workforce_events"):
+        return {"raw_data": raw_data, "retry_count": state.retry_count + 1}
 
     return {"raw_data": raw_data}
 
@@ -121,10 +129,12 @@ def parse_events_node(state: LeanOptimizationWorkflowState) -> dict:
             "waste_list": [],
             "bottlenecks": [],
             "kaizen_proposals": [],
+            "validation_errors": validation_errors,
         }
 
     return {
         "process_graph": f"Discovered process with {len(set(e.operation for e in production_events))} operations",
+        "validation_errors": [],
     }
 
 
@@ -265,7 +275,7 @@ def simulate_improvement_node(state: LeanOptimizationWorkflowState, agent: Optio
         return {"target_vsm": current_vsm}
 
     # Get highest priority proposal for simulation
-    priority_proposal = agent._get_highest_priority_proposal(kaizen_proposals)
+    priority_proposal = agent.get_highest_priority_proposal(kaizen_proposals)
 
     if priority_proposal is None:
         return {"target_vsm": current_vsm}
@@ -434,6 +444,9 @@ def create_lean_optimization_workflow(
 
     # Human review conditional edges
     def human_review_route(state: LeanOptimizationWorkflowState) -> str:
+        # Check if max retries exceeded before allowing another attempt
+        if state.retry_count >= state.max_retries:
+            return "max_retries_exceeded"
         if state.human_approved:
             return "approved"
         return "rejected"
@@ -444,6 +457,7 @@ def create_lean_optimization_workflow(
         {
             "approved": END,
             "rejected": "collect_data",  # Loop back for re-processing
+            "max_retries_exceeded": END,  # Stop workflow after max retries
         }
     )
 
@@ -453,7 +467,7 @@ def create_lean_optimization_workflow(
 def run_lean_optimization_workflow(
     raw_data: Optional[Dict[str, Any]] = None,
     agent: Optional[LeanOptimizationAgent] = None,
-) -> LeanOptimizationWorkflowState:
+) -> Dict[str, Any]:
     """Run the Lean Optimization workflow and return final state.
 
     Args:
@@ -461,7 +475,7 @@ def run_lean_optimization_workflow(
         agent: Optional LeanOptimizationAgent instance
 
     Returns:
-        Final LeanOptimizationWorkflowState after workflow completion
+        Final workflow state dict after workflow completion
     """
     workflow = create_lean_optimization_workflow(agent)
 

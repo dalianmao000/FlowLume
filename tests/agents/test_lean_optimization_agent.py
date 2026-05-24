@@ -417,7 +417,7 @@ class TestHelperMethods:
             ),
         ]
 
-        highest = agent._get_highest_priority_proposal(proposals)
+        highest = agent.get_highest_priority_proposal(proposals)
         assert highest.priority == "high"
 
 
