@@ -64,39 +64,48 @@ class UserBehaviorTracker:
     def record_learning_event(self, event: LearningEvent) -> None:
         """记录学习事件"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
-                INSERT INTO learning_events
-                (event_id, user_id, event_type, module_id, timestamp, metadata)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event.event_id,
-                    event.user_id,
-                    event.event_type,
-                    event.module_id,
-                    event.timestamp,
-                    json.dumps(event.metadata) if event.metadata else None,
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO learning_events
+                    (event_id, user_id, event_type, module_id, timestamp, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.event_id,
+                        event.user_id,
+                        event.event_type,
+                        event.module_id,
+                        event.timestamp,
+                        json.dumps(event.metadata) if event.metadata else None,
+                    )
                 )
-            )
-            # 更新用户进度
-            self._update_user_progress(conn, event)
+                # 更新用户进度
+                self._update_user_progress(conn, event)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def _update_user_progress(self, conn: sqlite3.Connection, event: LearningEvent):
         """更新用户进度"""
         # 获取当前进度
         cursor = conn.execute(
-            "SELECT modules_completed, adoption_score FROM user_progress WHERE user_id = ?",
+            "SELECT modules_completed, adoption_score, role, skill_level FROM user_progress WHERE user_id = ?",
             (event.user_id,)
         )
         row = cursor.fetchone()
 
         modules_completed = []
         adoption_score = 0.0
+        role = None
+        skill_level = None
 
         if row:
             modules_completed = json.loads(row[0]) if row[0] else []
             adoption_score = row[1]
+            role = row[2]
+            skill_level = row[3]
 
         # 更新进度
         if event.event_type == "complete":
@@ -105,17 +114,32 @@ class UserBehaviorTracker:
             # 每完成一个模块加 20 分
             adoption_score = min(100.0, adoption_score + 20.0)
 
-        conn.execute("""
-            INSERT OR REPLACE INTO user_progress
-            (user_id, last_activity, modules_completed, adoption_score, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            event.user_id,
-            event.timestamp,
-            json.dumps(modules_completed),
-            adoption_score,
-            datetime.now().isoformat()
-        ))
+        if row:
+            conn.execute("""
+                UPDATE user_progress
+                SET last_activity = ?, modules_completed = ?, adoption_score = ?, updated_at = ?
+                WHERE user_id = ?
+            """, (
+                event.timestamp,
+                json.dumps(modules_completed),
+                adoption_score,
+                datetime.now().isoformat(),
+                event.user_id
+            ))
+        else:
+            conn.execute("""
+                INSERT INTO user_progress
+                (user_id, role, skill_level, last_activity, modules_completed, adoption_score, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                event.user_id,
+                role,
+                skill_level,
+                event.timestamp,
+                json.dumps(modules_completed),
+                adoption_score,
+                datetime.now().isoformat()
+            ))
 
     def get_adoption_score(self, user_id: str) -> float:
         """获取用户 adoption 分数"""
