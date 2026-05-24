@@ -169,15 +169,19 @@ class UserBehaviorTracker:
         """获取用户所有事件"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
-                "SELECT * FROM learning_events WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
+                "SELECT event_id, user_id, event_type, module_id, timestamp, metadata FROM learning_events WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
                 (user_id, limit)
             )
-            columns = [desc[0] for desc in conn.execute("SELECT * FROM learning_events LIMIT 0").description]
             events = []
             for row in cursor.fetchall():
-                data = dict(zip(columns, row))
-                if data.get("metadata"):
-                    data["metadata"] = json.loads(data["metadata"])
+                data = {
+                    "event_id": row[0],
+                    "user_id": row[1],
+                    "event_type": row[2],
+                    "module_id": row[3],
+                    "timestamp": row[4],
+                    "metadata": json.loads(row[5]) if row[5] else None
+                }
                 events.append(LearningEvent(**data))
             return events
 

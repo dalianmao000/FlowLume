@@ -1,8 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from dataclasses import dataclass
 
-from src.llm.claude_client import ClaudeClient, get_claude_client
-from src.rag.retriever import Retriever
+from src.llm.claude_client import ClaudeClient
 from src.prompts.strategic_planning import (
     SYSTEM_PROMPT,
     MATURITY_ASSESSMENT_TEMPLATE,
@@ -10,6 +9,9 @@ from src.prompts.strategic_planning import (
     ROADMAP_GENERATION_TEMPLATE,
     ROI_ESTIMATION_TEMPLATE,
 )
+
+if TYPE_CHECKING:
+    from src.rag.retriever import Retriever
 
 
 @dataclass
@@ -75,7 +77,7 @@ class StrategicPlanningAgent:
     def __init__(
         self,
         llm_client: Optional[ClaudeClient] = None,
-        retriever: Optional[Retriever] = None,
+        retriever: Optional["Retriever"] = None,
     ):
         self.llm = llm_client or ClaudeClient()
         self.retriever = retriever
