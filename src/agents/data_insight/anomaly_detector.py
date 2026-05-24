@@ -10,10 +10,20 @@ Methods:
     - Rule-based detection with custom rules (detect_rule_based)
 """
 
+import math
 import statistics
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Callable, List, Optional, Union
+
+
+class SeverityLevel(Enum):
+    """Valid severity levels for anomalies."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 @dataclass
@@ -35,7 +45,7 @@ class AnomalyPoint:
     value: float
     expected_value: float
     deviation: float
-    severity: str
+    severity: SeverityLevel
     description: str
 
 
@@ -69,9 +79,9 @@ class AnomalyDetector:
         if self.timestamp_generator:
             return self.timestamp_generator(index)
         # Default: epoch + index hours
-        return datetime(1970, 1, 1) + __import__("datetime").timedelta(hours=index)
+        return datetime(1970, 1, 1) + timedelta(hours=index)
 
-    def _calculate_severity(self, z_score: float) -> str:
+    def _calculate_severity(self, z_score: float) -> SeverityLevel:
         """Calculate severity based on z-score.
 
         Severity levels:
@@ -83,17 +93,17 @@ class AnomalyDetector:
             z_score: The absolute z-score value
 
         Returns:
-            Severity level as string
+            Severity level as SeverityLevel enum
         """
         abs_z = abs(z_score)
         if abs_z > 4:
-            return "critical"
+            return SeverityLevel.CRITICAL
         elif abs_z > 3:
-            return "high"
+            return SeverityLevel.HIGH
         elif abs_z > 2:
-            return "medium"
+            return SeverityLevel.MEDIUM
         else:
-            return "low"
+            return SeverityLevel.LOW
 
     def detect_statistical(
         self, data: List[float], threshold: float = 2.0
@@ -125,7 +135,7 @@ class AnomalyDetector:
             return anomalies
 
         # If stdev is 0, no anomalies can be detected (all values identical)
-        if stdev == 0:
+        if math.isclose(stdev, 0, abs_tol=1e-9):
             return anomalies
 
         for index, value in enumerate(data):
@@ -246,7 +256,8 @@ class AnomalyDetector:
     def detect_rule_based(
         self,
         values: dict[str, float],
-        rules: Union[dict, list[dict]]
+        rules: Union[dict, list[dict]],
+        timestamp: Optional[datetime] = None
     ) -> List[AnomalyPoint]:
         """Detect anomalies using custom rules.
 
@@ -258,6 +269,8 @@ class AnomalyDetector:
         Args:
             values: Dictionary of metric names to values
             rules: Single rule dict or list of rule dicts
+            timestamp: Optional timestamp for detected anomalies. If not provided,
+                      uses the timestamp_generator from __init__ or current time as fallback.
 
         Returns:
             List of AnomalyPoint objects representing detected anomalies
@@ -273,7 +286,7 @@ class AnomalyDetector:
             operator = rule.get("operator")
             threshold = rule.get("threshold")
 
-            if not all([metric, operator, threshold is not None]):
+            if not metric or not operator or threshold is None:
                 continue
 
             if metric not in values:
@@ -303,7 +316,10 @@ class AnomalyDetector:
                     deviation = abs(value * 100) if value != 0 else 0.0
 
                 # Calculate severity based on deviation
-                z_score = deviation / 25  # Rough mapping for rule-based
+                # Map deviation percentage to z-score equivalent for severity calculation
+                # Rule-based deviations are in percentage units, so we divide by 25
+                # (which is approximately the std dev of percentage deviations in normal data)
+                z_score = deviation / 25
                 severity = self._calculate_severity(z_score)
 
                 description = self._generate_description(
@@ -314,9 +330,17 @@ class AnomalyDetector:
                     severity=severity
                 )
 
+                # Use provided timestamp, timestamp_generator, or current time as fallback
+                if timestamp is not None:
+                    ts = timestamp
+                elif self.timestamp_generator is not None:
+                    ts = self.timestamp_generator(0)  # Use index 0 for single timestamp
+                else:
+                    ts = datetime.now()
+
                 anomalies.append(
                     AnomalyPoint(
-                        timestamp=datetime.now(),
+                        timestamp=ts,
                         metric=metric,
                         value=value,
                         expected_value=threshold,
@@ -334,7 +358,7 @@ class AnomalyDetector:
         value: float,
         expected_value: float,
         deviation: float,
-        severity: str
+        severity: SeverityLevel
     ) -> str:
         """Generate a natural language description of an anomaly.
 
@@ -350,6 +374,6 @@ class AnomalyDetector:
         """
         direction = "above" if value > expected_value else "below"
 
-        description = f"{metric} is {value} ({deviation:.1f}% {direction} expected value of {expected_value}). Severity: {severity}."
+        description = f"{metric} is {value} ({deviation:.1f}% {direction} expected value of {expected_value}). Severity: {severity.value}."
 
         return description

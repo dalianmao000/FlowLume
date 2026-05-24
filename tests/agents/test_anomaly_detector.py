@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 from agents.data_insight.anomaly_detector import (
     AnomalyPoint,
     AnomalyDetector,
+    SeverityLevel,
 )
 
 
@@ -26,7 +27,7 @@ class TestAnomalyPointDataclass:
             value=0.95,
             expected_value=0.85,
             deviation=11.76,
-            severity="high",
+            severity=SeverityLevel.HIGH,
             description="OEE value exceeded expected range"
         )
         assert anomaly.timestamp == datetime(2026, 4, 25, 10, 0, 0)
@@ -34,7 +35,7 @@ class TestAnomalyPointDataclass:
         assert anomaly.value == 0.95
         assert anomaly.expected_value == 0.85
         assert anomaly.deviation == 11.76
-        assert anomaly.severity == "high"
+        assert anomaly.severity == SeverityLevel.HIGH
         assert anomaly.description == "OEE value exceeded expected range"
 
     def test_anomaly_point_str_representation(self):
@@ -45,7 +46,7 @@ class TestAnomalyPointDataclass:
             value=1000,
             expected_value=800,
             deviation=25.0,
-            severity="critical",
+            severity=SeverityLevel.CRITICAL,
             description="Output quantity significantly above expected"
         )
         str_repr = str(anomaly)
@@ -94,7 +95,7 @@ class TestDetectStatistical:
         assert len(anomalies) == 1
         assert anomalies[0].value == 50
         assert anomalies[0].metric == "value"
-        assert anomalies[0].severity in ["medium", "high", "critical"]
+        assert anomalies[0].severity in [SeverityLevel.MEDIUM, SeverityLevel.HIGH, SeverityLevel.CRITICAL]
 
     def test_detect_statistical_multiple_anomalies(self):
         """Verify multiple anomalies can be detected."""
@@ -148,7 +149,7 @@ class TestDetectStatistical:
 
         assert len(anomalies) == 1
         # With data std dev ~0 and mean 10, z-score for 100 is very high
-        assert anomalies[0].severity in ["medium", "high", "critical"]
+        assert anomalies[0].severity in [SeverityLevel.MEDIUM, SeverityLevel.HIGH, SeverityLevel.CRITICAL]
 
     def test_detect_statistical_deviation_calculation(self):
         """Verify deviation percentage is calculated correctly."""
@@ -255,7 +256,7 @@ class TestDetectRuleBased:
         assert len(anomalies) == 1
         assert anomalies[0].metric == "oee"
         assert anomalies[0].value == 0.55
-        assert anomalies[0].severity == "low"  # Below threshold but not extreme
+        assert anomalies[0].severity == SeverityLevel.LOW  # Below threshold but not extreme
 
     def test_detect_rule_based_no_violation(self):
         """Verify no anomaly when rule is not violated."""
@@ -388,7 +389,7 @@ class TestSeverityLevels:
         anomalies = detector.detect_rule_based(values, rules)
 
         assert len(anomalies) == 1
-        assert anomalies[0].severity == "low"
+        assert anomalies[0].severity == SeverityLevel.LOW
 
     def test_severity_medium(self):
         """Verify 'medium' severity for 2-3 std dev."""
@@ -403,7 +404,7 @@ class TestSeverityLevels:
         if len(anomalies) > 0:
             # deviation = |25-100|/100 * 100 = 75%
             # z_score = 75/25 = 3.0 -> should be "medium" (>2, <=3)
-            assert anomalies[0].severity == "medium", f"Expected medium but got {anomalies[0].severity}"
+            assert anomalies[0].severity == SeverityLevel.MEDIUM, f"Expected medium but got {anomalies[0].severity}"
 
     def test_severity_high(self):
         """Verify 'high' severity for >3 std dev."""
@@ -415,7 +416,7 @@ class TestSeverityLevels:
 
         if len(anomalies) > 0:
             # With [10x10, 15], z-score is high enough for "high" severity
-            assert anomalies[0].severity == "high"
+            assert anomalies[0].severity == SeverityLevel.HIGH
 
     def test_severity_critical(self):
         """Verify 'critical' severity for >4 std dev."""
@@ -428,7 +429,7 @@ class TestSeverityLevels:
         anomalies = detector.detect_rule_based(values, rules)
 
         if len(anomalies) > 0:
-            assert anomalies[0].severity == "critical", f"Expected critical but got {anomalies[0].severity}"
+            assert anomalies[0].severity == SeverityLevel.CRITICAL, f"Expected critical but got {anomalies[0].severity}"
 
 
 class TestIntegration:
