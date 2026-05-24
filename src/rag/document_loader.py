@@ -23,10 +23,12 @@ class PDFLoader(DocumentLoader):
 
         text_parts = []
         doc = fitz.open(source)
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            text_parts.append(page.get_text())
-        doc.close()
+        try:
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text_parts.append(page.get_text())
+        finally:
+            doc.close()
 
         return "\n\n".join(text_parts)
 

@@ -30,7 +30,8 @@ class RecursiveCharacterSplitter(TextSplitter):
         start = 0
 
         while start < len(text):
-            end = start + self.chunk_size
+            original_end = start + self.chunk_size
+            end = original_end
             chunk = text[start:end]
 
             # 寻找最佳分割点
