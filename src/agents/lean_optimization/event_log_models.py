@@ -49,7 +49,7 @@ class ProductionEvent:
 
     event_id: str
     order_id: str
-    event_type: str
+    event_type: EventType
     operation: str
     equipment_id: str
     start_time: datetime
@@ -90,7 +90,7 @@ class EquipmentEvent:
 
     timestamp: datetime
     equipment_id: str
-    status: str
+    status: EquipmentStatus
     duration: Optional[float] = None
     reason: Optional[str] = None
 

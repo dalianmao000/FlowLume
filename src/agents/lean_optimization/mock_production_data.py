@@ -232,10 +232,10 @@ def generate_equipment_events(start_date: datetime, days: int = 7) -> List[Equip
                     reason = None
                 elif new_status == "DOWN":
                     duration = random.uniform(1.0, 8.0)  # hours
-                    reason = random.choice(["机械故障", "电气故障", "物料短缺", "操作错误"])
+                    reason = random.choice(["Mechanical Failure", "Electrical Failure", "Material Shortage", "Operator Error"])
                 else:  # MAINTENANCE
                     duration = random.uniform(2.0, 12.0)  # hours
-                    reason = random.choice(["计划维护", "预防性维护", "设备调整", "换型"])
+                    reason = random.choice(["Planned Maintenance", "Preventive Maintenance", "Equipment Adjustment", "Changeover"])
 
                 events.append(EquipmentEvent(
                     timestamp=current_time,
