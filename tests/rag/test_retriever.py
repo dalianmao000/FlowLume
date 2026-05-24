@@ -1,50 +1,22 @@
+import sys
+import os
 import pytest
 import numpy as np
 
-# VectorStore tests use only numpy, no external dependencies
-# We define it inline to avoid import issues
-class VectorStore:
-    """向量存储（内存版，测试用版本）"""
+# Mock heavy dependencies before importing the production module
+import unittest.mock as mock
+sys.modules['sentence_transformers'] = mock.MagicMock()
 
-    def __init__(self):
-        self.vectors: list = []
-        self.documents: list = []
-        self.metadatas: list = []
-
-    def add(self, documents: list, embeddings: np.ndarray, metadatas: list = None):
-        """添加文档到向量库"""
-        self.documents.extend(documents)
-        self.vectors.extend(embeddings)
-        if metadatas:
-            self.metadatas.extend(metadatas)
-        else:
-            self.metadatas.extend([{}] * len(documents))
-
-    def search(self, query_embedding: np.ndarray, top_k: int = 5) -> list:
-        """向量检索"""
-        if not self.vectors:
-            return []
-
-        similarities = [
-            self._cosine_similarity(query_embedding, vec)
-            for vec in self.vectors
-        ]
-
-        top_indices = np.argsort(similarities)[-top_k:][::-1]
-
-        return [
-            {
-                "content": self.documents[i],
-                "metadata": self.metadatas[i],
-                "score": float(similarities[i]),
-            }
-            for i in top_indices
-        ]
-
-    @staticmethod
-    def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-        """计算余弦相似度"""
-        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8)
+# Import directly from retriever module to avoid triggering src.rag.__init__
+# which has heavy dependencies (fitz, sentence-transformers)
+import importlib.util
+spec = importlib.util.spec_from_file_location(
+    "retriever_module",
+    os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'rag', 'retriever.py')
+)
+retriever_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(retriever_module)
+VectorStore = retriever_module.VectorStore
 
 
 class TestVectorStore:
